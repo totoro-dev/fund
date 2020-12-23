@@ -1,5 +1,6 @@
 package pub.lskj.fund;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,6 +45,10 @@ public class MostPerMon {
      * 目标收益百分比（单位%）
      */
     private float targetPercentage;
+    /**
+     * 初始投入资本
+     */
+    private int initCapital = 500;
 
     /**
      * 基金的交易日数据
@@ -61,6 +66,15 @@ public class MostPerMon {
          * 涨跌幅，跌为负、涨为正
          */
         float rate = 0F;
+
+        @Override
+        public String toString() {
+            return "FundData{" +
+                    "index=" + index +
+                    ", value=" + value +
+                    ", rate=" + rate +
+                    '}';
+        }
     }
 
     /**
@@ -94,6 +108,24 @@ public class MostPerMon {
      */
     public void print(int plusMaxTimes) {
         calculate(plusMaxTimes);
+        decisionFactor();
+    }
+
+    /**
+     * 决策因子
+     */
+    private float decisionFactor() {
+        if (monthFundData.isEmpty()) {
+            return 0F;
+        }
+        float factor = 0F;
+        List<FundData> monthData = new LinkedList<>(monthFundData);
+        FundData start = monthData.get(0);
+        monthData.remove(start);
+        for (FundData data : monthData) {
+
+        }
+        return factor;
     }
 
     /**
@@ -102,7 +134,30 @@ public class MostPerMon {
      * @param plusMaxTimes 资本最多分多少次追加
      */
     private void calculate(int plusMaxTimes) {
-        List<FundData> fundDataToPlus = findTopNegativeFundData(plusMaxTimes);
+//        List<FundData> fundDataToPlus = findTopNegativeFundData(plusMaxTimes);
+        List<FundData> fundDataToPlus = findNegativeFundData();
+        for (FundData dataToPlus : fundDataToPlus) {
+            System.out.println(dataToPlus);
+        }
+        // 开始追加资本的交易日在fundDataToPlus中的下标
+        int startIndex = -1;
+        for (int i = 0; i < fundDataToPlus.size(); i++) {
+            startIndex = i;
+            // j:当月追加资本的次数
+            for (int j = 1; j <= Math.min(plusMaxTimes, fundDataToPlus.size()); j++) {
+                for (int k = 0; k < fundDataToPlus.size(); k++) {
+                    // 找出j个交易日
+                }
+                // 下一次追加资本的交易日下标
+                int nextIndex = startIndex + 1;
+                // k:当月第几次追加资本
+                for (int k = 0; k < j; k++) {
+                    for (int l = nextIndex; l < fundDataToPlus.size(); l++) {
+
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -112,7 +167,7 @@ public class MostPerMon {
      */
     private List<FundData> findTopNegativeFundData(int top) {
         List<FundData> topNegatives = new LinkedList<>();
-        List<FundData> monthFundData = this.monthFundData;
+        List<FundData> monthFundData = new LinkedList<>(this.monthFundData);
         for (int i = 0; i < top; i++) {
             float maxNegativeRate = 0;
             FundData find = null;
@@ -138,5 +193,29 @@ public class MostPerMon {
             }
         });
         return topNegatives;
+    }
+
+    /**
+     * 找出跌幅的所有交易日
+     *
+     * @return 跌幅交易日
+     */
+    private List<FundData> findNegativeFundData() {
+        List<FundData> negatives = new LinkedList<>();
+        List<FundData> monthFundData = this.monthFundData;
+        for (FundData data : monthFundData) {
+            // 选择跌幅最高的一个交易日
+            if (data.rate < 0) {
+                negatives.add(data);
+            }
+        }
+        // 根据基金的交易日升序排序
+        negatives.sort(new Comparator<FundData>() {
+            @Override
+            public int compare(FundData o1, FundData o2) {
+                return o1.index - o2.index;
+            }
+        });
+        return negatives;
     }
 }
