@@ -1,6 +1,5 @@
 package pub.lskj.fund;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,9 +13,9 @@ import java.util.List;
  */
 public class MostPerMon {
     /**
-     * 每次买入最小资本100元
+     * 每次交易最小份额100份
      */
-    private final int PLUS_MIN = 100;
+    private final int DEAL_MIN = 100;
 
     /**
      * 资本的增加数据
@@ -67,6 +66,15 @@ public class MostPerMon {
          */
         float rate = 0F;
 
+        public FundData() {
+        }
+
+        public FundData(int index, float value, float rate) {
+            this.index = index;
+            this.value = value;
+            this.rate = rate;
+        }
+
         @Override
         public String toString() {
             return "FundData{" +
@@ -107,25 +115,135 @@ public class MostPerMon {
      * @param plusMaxTimes 资本最多分多少次追加
      */
     public void print(int plusMaxTimes) {
-        calculate(plusMaxTimes);
+//        calculate(plusMaxTimes);
         decisionFactor();
     }
 
     /**
      * 决策因子
      */
-    private float decisionFactor() {
+    private void decisionFactor() {
         if (monthFundData.isEmpty()) {
-            return 0F;
+            return;
         }
-        float factor = 0F;
         List<FundData> monthData = new LinkedList<>(monthFundData);
         FundData start = monthData.get(0);
         monthData.remove(start);
-        for (FundData data : monthData) {
 
+        // 收益率
+        float yield = 0F;
+
+        float noDealFactor = 0F, buyFactor = 1F, saleFactor = 0.01F;
+        // buy：每次买入的份数；sale：每次卖出的份数
+        int buy = 2 * DEAL_MIN, sale = 5 * DEAL_MIN;
+        // 最近买入的交易日
+        int recentBuyIndex = 0;
+        float maxPercentage = Float.MIN_VALUE;
+
+        while (buyFactor < 2F) {
+            saleFactor = 1F;
+            while (saleFactor < 2F) {
+                Info info = new Info();
+                info.startPrice = start.value;
+                info.totalCapital = initCapital;
+                info.currentCapital = initCapital;
+                info.share = initCapital / (start.value + 0.001F);
+                for (FundData data : monthData) {
+                    // 此次交易金额 或 交易份额
+                    float deal = 0F;
+                    if (data.rate < 0F && info.currentCapital < totalCapital) {
+                        // 跌了
+                        deal = buy * buyFactor;
+                        buy(info, data, deal);
+                        System.out.println("index = " + data.index + ", buy:" + deal);
+                    } else if (rich(info, data, recentBuyIndex, deal = sale * saleFactor, targetPercentage)) {
+                        sale(info, data, recentBuyIndex, sale * saleFactor);
+                        recentBuyIndex = data.index;
+                        System.out.println("index = " + data.index + ", sale:" + deal);
+                    } else {
+                        System.out.println("index = " + data.index + ", noDeal");
+                    }
+                }
+                float percentage = percentage(info.startPrice, info.price);
+                System.out.println("info = " + info);
+                if (percentage > maxPercentage && percentage >= targetPercentage) {
+                    maxPercentage = percentage;
+                    System.out.println("yes percentage = " + percentage + ", buyFactor = " + buyFactor + ", saleFactor = " + saleFactor);
+                } else {
+                    System.out.println("no percentage = " + percentage);
+                }
+                System.out.println("----------------------------end--------------------------------");
+                saleFactor += 0.1F;
+            }
+            buyFactor += 0.1F;
         }
-        return factor;
+    }
+
+    private void buy(Info info, FundData data, float deal) {
+        float charge = 0.001F;
+        float share = deal * (1 - charge) / data.value;
+        info.share += share;
+        info.cost += deal * charge;
+        info.currentCapital += deal * (1 - charge);
+        info.price = info.currentCapital / info.share;
+    }
+
+    private void sale(Info info, FundData data, int recentBuyIndex, float share) {
+        float charge = charge(data, recentBuyIndex);
+        float deal = data.value * share;
+        info.cost += deal * charge;
+        info.currentCapital -= deal - info.cost;
+        info.share -= share;
+        info.price = info.currentCapital / info.share;
+    }
+
+    private boolean rich(Info info, FundData data, int recentBuyIndex, float share, float targetPercentage) {
+        float charge = charge(data, recentBuyIndex);
+        float deal = data.value * share * (1 - charge);
+        float price = (info.currentCapital - deal) / (info.share - share);
+        return percentage(info.startPrice, price) >= targetPercentage;
+    }
+
+    private float percentage(float startPrice, float price) {
+        return (startPrice - price) / startPrice;
+    }
+
+    private float charge(FundData data, int recentBuyIndex) {
+        return recentBuyIndex + 5 >= data.index ? 0.005F : 0.015F;
+    }
+
+    private float profit(Info info, FundData data, float charge) {
+        return info.share * (1 - charge) * data.value - info.currentCapital;
+    }
+
+
+    private static class Info {
+        int totalCapital = 0;
+        // 当前本金
+        int currentCapital = 0;
+        // 历史持有份额
+        float totalShare = 0F;
+        // 持有份额
+        float share = 0F;
+        // 摊薄单价成本
+        float price = 0F;
+        // 服务花费
+        float cost = 0F;
+        // 初始买入单价
+        float startPrice = 0F;
+
+        @Override
+        public String toString() {
+            return "Info{" +
+                    "totalCapital=" + totalCapital +
+                    ", currentCapital=" + currentCapital +
+                    ", totalShare=" + totalShare +
+                    ", share=" + share +
+                    ", price=" + price +
+                    ", cost=" + cost +
+                    ", startPrice=" + startPrice +
+                    '}';
+        }
     }
 
     /**
